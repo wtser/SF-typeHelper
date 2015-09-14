@@ -1,0 +1,17 @@
+{
+  "name": "sf_typeHelper",
+  "version": "0.0.1",
+  "homepage": "https://github.com/SegmentFault/sf-static",
+  "authors": [
+    "wtser <wtser@segmentfault.com>"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "3rd/",
+    "test",
+    "tests"
+  ]
+}

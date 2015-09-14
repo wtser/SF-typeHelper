@@ -1,0 +1,124 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="renderer" content="webkit"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>SF-typeHelper</title>
+
+    <link rel="stylesheet" href="../../global/css/global.css"/>
+    <link rel="stylesheet" href="./dist/sf_typeHelper.css"/>
+
+</head>
+<body>
+
+<header class="header">
+    <div class="container text-center">
+        <h1>SF-typeHelper
+            <small>输入辅助器</small>
+        </h1>
+    </div>
+</header>
+<div class="wrap">
+    <div class="container">
+        <section>
+            <h2>single mode
+                <small>单一模式</small>
+            </h2>
+
+            <form>
+                <div class="form-group">
+                    <label>选择工程师</label>
+                    <input id="typeHelperDemo" type="typeHelper" class="form-control" placeholder="如：wtser">
+                </div>
+                <div class="form-group">
+                    <pre id="typeHelperDemo1Pre">
+
+                    </pre>
+                </div>
+            </form>
+
+            <h2>mutil mode
+                <small>复数模式</small>
+            </h2>
+
+            <form>
+                <div class="form-group">
+                    <label>所在城市</label>
+                    <input id="typeHelperDemo2" type="typeHelper" class="form-control" placeholder="例如: 杭州">
+
+
+                </div>
+                <div class="form-group">
+                    <pre id="typeHelperDemo2Pre">
+
+                    </pre>
+                </div>
+            </form>
+        </section>
+    </div>
+</div>
+
+</div>
+<script>
+    SF = {
+        staticUrl: "//" + location.host
+    };
+
+</script>
+
+<script src="../../3rd/requirejs/require.js"></script>
+<script>
+    requirejs(["jquery", "underscore", "sf_typeHelper"], function () {
+
+        window.single = $("#typeHelperDemo").typeHelper({
+            maxNum:     1,
+            remoteData: [
+                {
+                    id:   0,
+                    name: 'aa'
+                },
+                {
+                    id:   0,
+                    name: 'wtser'
+                },
+                {
+                    id:   0,
+                    name: 'fake'
+                }
+            ],
+            initData:   [
+                {
+                    id:   0,
+                    name: 'wtser'
+                }
+            ],
+            emptyFunc:  function () {
+                console.log(1111)
+            },
+            emptyTip:   '无匹配数据',
+            afterAdd:   function (self) {
+                $("#typeHelperDemo1Pre").html(JSON.stringify(self.result))
+            }
+        })
+
+        window.mutil = $("#typeHelperDemo2").typeHelper({
+            remoteData: 'data.json',
+            initData:   [
+                {
+                    id:   0,
+                    name: 'wtser'
+                }
+            ],
+            afterAdd:   function (self) {
+                $("#typeHelperDemo2Pre").html(JSON.stringify(self.result))
+            }
+        })
+
+
+    })
+</script>
+
+
+</body>
+</html>
