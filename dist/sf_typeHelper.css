@@ -47,10 +47,17 @@
   margin: 0;
   text-transform: lowercase;
   width: 6rem;
+  max-width: 100%;
 }
 .sf-typeHelper-input::-webkit-input-placeholder {
   color: #777;
 }
 .sf-typeHelper-list {
   padding: 5px 0 !important;
+  z-index: 1001;
+}
+.sf-typeHelper-list li img {
+  height: 32px;
+  width: 32px;
+  border-radius: 3px;
 }

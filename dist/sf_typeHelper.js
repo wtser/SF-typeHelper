@@ -4,7 +4,7 @@ typeHelper = {
     name: '输入辅助器'
     desc: '标签输入组件,支持输入多个值'
     author: 'wtser@segmentfault.com'
-    dep: 'jquery,undersocre'
+    dep: 'jquery,underscore'
 
     opt: {
         tpl: '模板 (可选)'
@@ -22,25 +22,31 @@ typeHelper = {
   defaultOpt = {
     initData: [],
     remoteData: [],
-    tpl: "<li data-id='<%= id %>' ><a data-role='typeHelper' href='javascript:;'> <%= name %> </a></li>",
-    maxNum: 6,
+    inputTpl: '<span class="sf-typeHelper-item<%= itemClass %> "> <%= name %> <span class="fa fa-times" data-role="remove"></span></span>',
+    tpl: "<li data-id='<%= id %>' ><a data-role='typeHelper' href='javascript:;'><% if (typeof(img)!='undefined'){ %> <img src='<%= img %>'> <% } %> <%= name %> </a></li>",
+    maxNum: 5,
     confirmKeys: [13, 44, 32],
     emptyTip: '',
     emptyFunc: function() {},
     afterAdd: function() {},
+    afterRemove: function() {},
     beforeAdd: function() {}
   };
   TypeHelper = function(element, opt) {
+    if (element.length === 0) {
+      console.warn("element not found in DOM");
+      return;
+    }
     _.each(defaultOpt, function(d, k) {
-      return opt[k] = opt[k] || d;
+      var ref;
+      return opt[k] = (ref = opt[k]) != null ? ref : d;
     });
     this.opt = opt;
-    this.maxNum = opt.maxNum;
     this.items = [];
     this.result = [];
     this.query = '';
     this.$element = $(element);
-    this.$element.attr("type", "hidden");
+    this.$element.addClass("hidden");
     if (element.hasAttribute('placeholder')) {
       this.placeholderText = this.$element.attr('placeholder');
     } else {
@@ -55,12 +61,31 @@ typeHelper = {
   };
   TypeHelper.prototype = {
     constructor: TypeHelper,
+    formatter: function(filterData) {
+      var data;
+      filterData = filterData != null ? filterData : [];
+      data = _.map(filterData, function(d, k) {
+        var o, ref, ref1, ref2;
+        if (typeof d !== "object") {
+          o = {};
+          o.name = d;
+          o.id = k;
+          d = o;
+        }
+        d.name = (ref = d.name) != null ? ref : d;
+        d.id = (ref1 = d.id) != null ? ref1 : k;
+        d.img = (ref2 = d.img) != null ? ref2 : d.avatarUrl;
+        return d;
+      });
+      return data;
+    },
     getRemoteData: function(query, cb) {
       var filterData, self;
       self = this;
       filterData = [];
       if (typeof self.opt.remoteData === "object") {
-        filterData = _.filter(self.opt.remoteData, function(d) {
+        filterData = self.formatter(self.opt.remoteData);
+        filterData = _.filter(filterData, function(d) {
           return d.name.search(query) !== -1;
         });
         if (cb) {
@@ -79,10 +104,7 @@ typeHelper = {
             dataType: "json",
             success: function(d) {
               filterData = d.data;
-              filterData = _.map(filterData, function(d, k) {
-                d.id = d.id || k;
-                return d;
-              });
+              filterData = self.formatter(filterData);
               if (cb) {
                 return cb(filterData);
               }
@@ -97,7 +119,6 @@ typeHelper = {
       if (query.length > 0) {
         return self.getRemoteData(query, function(filterData) {
           var filterList;
-          filterData = filterData;
           filterData = _.difference(filterData, self.result);
           if (filterData.length === 0 && self.opt.emptyTip.length > 0) {
             filterData.push({
@@ -106,8 +127,8 @@ typeHelper = {
             });
           }
           self.items = filterData;
-          filterList = _.reduce(filterData, function(mome, f) {
-            return mome + _.template(self.opt.tpl)(f);
+          filterList = _.reduce(filterData, function(memo, f) {
+            return memo + _.template(self.opt.tpl)(f);
           }, '');
           if (filterList.length > 0) {
             self.$list.show();
@@ -124,23 +145,22 @@ typeHelper = {
       }
     },
     renderInput: function() {
-      var html, itemClass, self, tpl;
+      var html, itemClass, self;
       self = this;
       self.$container.find(".sf-typeHelper-item").remove();
       self.$container.find(".sf-typeHelper-item-single").remove();
       itemClass = '';
-      if (self.maxNum === 1) {
+      if (self.opt.maxNum === 1) {
         itemClass = "-single";
       }
-      html = '';
-      tpl = '<span class="sf-typeHelper-item' + itemClass + '"> <%= name %> <span class="fa fa-times" data-role="remove"></span></span>';
-      _.each(self.result, function(i) {
-        var renderHtml;
-        renderHtml = _.template(tpl)(i);
-        return html += renderHtml;
-      });
-      self.$container.prepend(html);
-      if (self.result.length === self.maxNum) {
+      if (self.opt.inputTpl.length > 0) {
+        html = _.reduce(self.result, function(memo, i) {
+          i.itemClass = itemClass;
+          return memo + _.template(self.opt.inputTpl)(i);
+        }, "");
+        self.$container.prepend(html);
+      }
+      if (self.opt.maxNum !== 0 && self.result.length === self.opt.maxNum) {
         self.$input.attr("placeholder", '');
       } else {
         return self.$input.attr("placeholder", this.placeholderText);
@@ -153,7 +173,7 @@ typeHelper = {
       self.result.push(item);
       self.renderInput();
       if (self.opt.afterAdd) {
-        return self.opt.afterAdd(self);
+        return self.opt.afterAdd(item, self);
       }
     },
     remove: function(item) {
@@ -162,17 +182,23 @@ typeHelper = {
       self.result = _.filter(self.result, function(d) {
         return d.name !== item.name;
       });
-      return self.renderInput();
+      self.renderInput();
+      if (self.opt.afterRemove) {
+        return self.opt.afterRemove(item, self);
+      }
     },
     init: function(opt) {
       var self;
       self = this;
-      self.result = opt.initData;
+      self.result = self.formatter(opt.initData);
       return self.renderInput();
     },
     build: function(opt) {
       var self;
       self = this;
+      if (self.placeholderText.length > 0) {
+        self.$input.css("width", self.placeholderText.length + "em");
+      }
       if (opt.initData.length > 0) {
         self.init(opt);
       }
@@ -189,20 +215,19 @@ typeHelper = {
         var keyCode;
         keyCode = e.keyCode;
         if (keyCode === 8 && self.query.length === 0) {
-          self.result.pop();
-          return self.renderInput();
+          self.remove(_.last(self.result));
+          self.renderInput();
         }
-      });
-      self.$input.on('keypress', function(e) {
-        var keyCode;
-        keyCode = e.keyCode;
-        if (self.result.length === self.maxNum) {
+        if (keyCode === 13) {
+          e.preventDefault();
+        }
+        if (self.result.length === self.opt.maxNum && self.opt.maxNum !== 0) {
           return e.preventDefault();
         }
       });
       self.$input.on('keyup', function(e) {
         var _activeLi, currentIndex, keyCode, selectedItem;
-        if (self.result.length === self.maxNum) {
+        if (self.result.length === self.opt.maxNum && self.opt.maxNum !== 0) {
           return;
         }
         self.query = $(this).val();
@@ -276,11 +301,9 @@ typeHelper = {
         }
         return self.$list.trigger("hide");
       });
-      return self;
     }
   };
-  $.fn.typeHelper = function(opt) {
+  return $.fn.typeHelper = function(opt) {
     return new TypeHelper($(this)[0], opt);
   };
-  return $.fn.typeHelper.Constructor = TypeHelper;
 })($, _);

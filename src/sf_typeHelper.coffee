@@ -3,7 +3,7 @@ typeHelper = {
     name: '输入辅助器'
     desc: '标签输入组件,支持输入多个值'
     author: 'wtser@segmentfault.com'
-    dep: 'jquery,undersocre'
+    dep: 'jquery,underscore'
 
     opt: {
         tpl: '模板 (可选)'
@@ -18,34 +18,46 @@ typeHelper = {
 ###
 
 do ($, _)->
+
+# 默认配置项
     defaultOpt = {
         initData: []
         remoteData: []
-        tpl: "<li data-id='<%= id %>' ><a data-role='typeHelper' href='javascript:;'> <%= name %> </a></li>"
-        maxNum: 6
+        inputTpl: '<span class="sf-typeHelper-item<%= itemClass %> "> <%= name %> <span class="fa fa-times" data-role="remove"></span></span>'
+        tpl: "<li data-id='<%= id %>' ><a data-role='typeHelper' href='javascript:;'><% if (typeof(img)!='undefined'){ %> <img src='<%= img %>'> <% } %> <%= name %> </a></li>"
+        maxNum: 5
         confirmKeys: [13, 44, 32]
         emptyTip: ''
         emptyFunc: ()-> return
         afterAdd: ()-> return
+        afterRemove: ()-> return
         beforeAdd: ()-> return
     }
 
-    TypeHelper = (element, opt)->
-# opt 数据初始化
-        _.each defaultOpt, (d, k)->
-            opt[k] = opt[k] || d
 
+    TypeHelper = (element, opt)->
+        if element.length is 0
+            console.warn "element not found in DOM"
+            return
+
+        # opt 数据重载
+        _.each defaultOpt, (d, k)->
+            opt[k] = opt[k] ? d
 
         this.opt = opt
-        this.maxNum = opt.maxNum
-        # ul 下拉菜单渲染数据 items
+
+        # ajax search 请求到的数据 即 ul 下拉菜单渲染数据 items
         this.items = []
-        # 用户输入最终数据 result
+
+        # 用户选择得最终数据 result
         this.result = []
+
+        # 用户键入的用于查询的字符串
         this.query = ''
 
+        # 输入框元素 type hidden 改为class hidden 为了兼容form的报错功能
         this.$element = $(element)
-        this.$element.attr("type", "hidden")
+        this.$element.addClass("hidden")
 
         if element.hasAttribute('placeholder')
             this.placeholderText = this.$element.attr('placeholder')
@@ -65,11 +77,26 @@ do ($, _)->
 
     TypeHelper.prototype = {
         constructor: TypeHelper,
+        formatter: (filterData)->
+            filterData = filterData ? []
+            data = _.map filterData, (d, k)->
+                if typeof(d) isnt "object"
+                    o = {}
+                    o.name = d
+                    o.id = k
+                    d = o
+                d.name = d.name ? d
+                d.id = d.id ? k
+                d.img = d.img ? d.avatarUrl
+                return d
+            return data
         getRemoteData: (query, cb)->
             self = this
             filterData = []
             if typeof self.opt.remoteData is "object"
-                filterData = _.filter self.opt.remoteData, (d)-> return d.name.search(query) != -1
+
+                filterData = self.formatter(self.opt.remoteData)
+                filterData = _.filter filterData, (d)-> return d.name.search(query) != -1
                 if cb then cb(filterData)
             else
                 if self.timer
@@ -81,9 +108,7 @@ do ($, _)->
                             dataType: "json"
                             success: (d)->
                                 filterData = d.data
-                                filterData = _.map filterData, (d, k)->
-                                    d.id = d.id || k
-                                    return d
+                                filterData = self.formatter(filterData)
                                 if cb then cb(filterData)
                         }
                     )
@@ -94,15 +119,14 @@ do ($, _)->
             self = this
             if query.length > 0
                 self.getRemoteData(query, (filterData)->
-                    filterData = filterData
                     filterData = _.difference filterData, self.result
 
                     if filterData.length is 0 and self.opt.emptyTip.length > 0
                         filterData.push {id: -1, name: self.opt.emptyTip}
                     self.items = filterData
 
-                    filterList = _.reduce filterData, (mome, f)->
-                        return mome + _.template(self.opt.tpl)(f)
+                    filterList = _.reduce filterData, (memo, f)->
+                        return memo + _.template(self.opt.tpl)(f)
                     , ''
 
                     if filterList.length > 0
@@ -127,17 +151,19 @@ do ($, _)->
             self.$container.find(".sf-typeHelper-item-single").remove()
 
             itemClass = ''
-            if self.maxNum is 1
+            if self.opt.maxNum is 1
                 itemClass = "-single"
 
-            html = ''
-            tpl = '<span class="sf-typeHelper-item' + itemClass + '"> <%= name %> <span class="fa fa-times" data-role="remove"></span></span>'
-            _.each self.result, (i)->
-                renderHtml = _.template(tpl)(i)
-                html += renderHtml
-            self.$container.prepend html
 
-            if self.result.length is self.maxNum
+            if self.opt.inputTpl.length > 0
+
+                html = _.reduce self.result, (memo, i)->
+                    i.itemClass = itemClass
+                    return memo + _.template(self.opt.inputTpl)(i)
+                , ""
+                self.$container.prepend html
+
+            if self.opt.maxNum isnt 0 and self.result.length is self.opt.maxNum
                 self.$input.attr("placeholder", '')
                 # self.$input.attr("readonly", true)
                 return
@@ -152,7 +178,7 @@ do ($, _)->
             self.result.push item
             self.renderInput()
 
-            if self.opt.afterAdd then self.opt.afterAdd(self)
+            if self.opt.afterAdd then self.opt.afterAdd(item, self)
 
 
 
@@ -161,14 +187,19 @@ do ($, _)->
             self.result = _.filter self.result, (d)-> return d.name != item.name
             self.renderInput()
 
+            if self.opt.afterRemove then self.opt.afterRemove(item, self)
+
 
         init: (opt)->
             self = this
-            self.result = opt.initData
+            self.result = self.formatter(opt.initData)
             self.renderInput()
 
         build: (opt)->
             self = this
+
+            if self.placeholderText.length > 0
+                self.$input.css("width", self.placeholderText.length + "em")
 
 
             if opt.initData.length > 0
@@ -190,20 +221,20 @@ do ($, _)->
                 keyCode = e.keyCode
 
                 if keyCode is 8 and self.query.length is 0
-                    self.result.pop()
+                    self.remove(_.last(self.result))
                     self.renderInput()
 
+                # 回车 阻止可能的表单提交事件
+                if keyCode is 13
+                    e.preventDefault()
 
-#console.log 'keydown' + keyCode
-            )
-            self.$input.on('keypress', (e)->
-                keyCode = e.keyCode
-                if self.result.length is self.maxNum
+                # 数据达到最大可输入数量后阻止
+                if  self.result.length is self.opt.maxNum and self.opt.maxNum isnt 0
                     e.preventDefault()
             )
 
             self.$input.on('keyup', (e)->
-                if self.result.length is self.maxNum
+                if self.result.length is self.opt.maxNum and self.opt.maxNum isnt 0
                     return
                 self.query = $(this).val()
                 keyCode = e.keyCode
@@ -211,8 +242,10 @@ do ($, _)->
 
                 switch keyCode
 
-                    when 8 then self.renderList(self.query) #回退
-                    when 13 #回车
+# 回退
+                    when 8 then self.renderList(self.query)
+# 回车
+                    when 13
                         currentIndex = self.$list.find("li.active").index()
                         selectedItem = self.items[currentIndex]
 
@@ -223,22 +256,21 @@ do ($, _)->
                             if self.opt.emptyFunc then self.opt.emptyFunc()
 
                         self.$list.trigger("hide")
-                    when 38 #向上
+# 向上
+                    when 38
                         _activeLi = self.$list.find("li.active")
                         currentIndex = _activeLi.index()
                         if currentIndex > 0
                             _activeLi.removeClass("active")
                             _activeLi.prev("li").addClass("active")
 
-                    when 40 #向下
+# 向下
+                    when 40
                         _activeLi = self.$list.find("li.active")
                         currentIndex = _activeLi.index()
                         if currentIndex < self.items.length - 1
                             _activeLi.removeClass("active")
                             _activeLi.next("li").addClass("active")
-# when 46 then console.log '删除'
-# when 37 then console.log '左箭头'
-# when 39 then console.log '右箭头'
                     else
                         self.renderList(self.query)
             )
@@ -273,7 +305,7 @@ do ($, _)->
                 self.$list.trigger("hide")
             )
 
-            return self
+            return
 
 
     }
@@ -281,9 +313,3 @@ do ($, _)->
 
     $.fn.typeHelper = (opt) ->
         new TypeHelper($(this)[0], opt)
-
-
-    $.fn.typeHelper.Constructor = TypeHelper;
-
-
-

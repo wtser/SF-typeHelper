@@ -1,0 +1,44 @@
+@charset "UTF-8";
+/* 技能标签 */
+.form-group {
+  position: relative;
+}
+
+.techTags {
+  display: none;
+  position: absolute;
+  width: 100%;
+  padding: 5px 15px;
+  z-index: 1;
+}
+.techTags .tab-pane {
+  min-height: 165px;
+  padding-top: 10px;
+}
+.techTags .nav-tabs li a {
+  color: #777;
+  padding: 5px 10px;
+}
+.techTags .close {
+  font-size: 14px;
+  margin-top: 8px;
+}
+.techTags .nav-tabs {
+  border-bottom: 3px solid #DDD;
+}
+.techTags .nav-tabs li {
+  border: none;
+}
+.techTags .nav-tabs li a {
+  margin-right: 0;
+  margin-bottom: -2px;
+  border: none;
+  border-bottom: 3px solid #DDD;
+}
+.techTags .nav-tabs .active a {
+  border-bottom: 3px solid #009A61;
+}
+.techTags .nav-tabs .active a:hover, .techTags .nav-tabs .active a:focus {
+  border: none;
+  border-bottom: 3px solid #009A61;
+}
